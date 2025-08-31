@@ -30,6 +30,8 @@ constexpr float kDefaultUseHighways = 0.5f; // Factor between 0 and 1
 constexpr float kDefaultUseTolls = 0.5f;    // Factor between 0 and 1
 constexpr float kDefaultUseTrails = 0.0f;   // Factor between 0 and 1
 
+constexpr float kDefaultUseCurvature = 0.f;
+
 constexpr Surface kMinimumMotorcycleSurface = Surface::kImpassable;
 
 // Default turn costs
@@ -86,6 +88,7 @@ BaseCostingOptionsConfig GetBaseCostOptsConfig() {
   BaseCostingOptionsConfig cfg{};
   // override defaults
   cfg.disable_rail_ferry_ = true;
+  cfg.use_curvature_.def = kDefaultUseCurvature;
   return cfg;
 }
 
@@ -429,6 +432,8 @@ Cost MotorcycleCost::EdgeCost(const baldr::DirectedEdge* edge,
     // Add a penalty for traversing a closed edge
     factor *= closure_factor_;
   }
+
+  factor *= edge->curvature() * curvature_factor_;
 
   return {sec * factor, sec};
 }
