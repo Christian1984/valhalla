@@ -1046,8 +1046,8 @@ protected:
   virtual void set_use_lit(float use_lit);
 
   /**
-   * Calculate `curvature` costs based on lit preference.
-   * @param use_curvature value of curvature preference in range [0; 1]
+   * Calculate `curvature` costs based on curvature preference.
+   * @param use_curvature value of curvature preference in range [0; kMaxPenalty]
    */
   virtual void set_use_curvature(float use_curvature);
 

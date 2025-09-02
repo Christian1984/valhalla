@@ -436,14 +436,7 @@ Cost MotorcycleCost::EdgeCost(const baldr::DirectedEdge* edge,
     factor *= closure_factor_;
   }
 
-  // TODO: docs + test + rename _factor-stuff
-  float edge_curvature_cost_factor = std::pow(1.f - edge->curvature() / (kMaxCurvature + 0.1f), curvature_factor_);
-  /*
-  if (factor != 1.f && edge->curvature() > 10) {
-    LOG_INFO("factor before:" + std::to_string(factor) + " | factor after:" + std::to_string(factor * edge_curvature_cost_factor) + ", edge_curvature_cost_factor:" + std::to_string(edge_curvature_cost_factor) + ", edge->curvature():" + std::to_string(edge->curvature()) + ", edge->length():" + std::to_string(edge->length()));
-  }
-  */
-  factor *= edge_curvature_cost_factor;
+  factor *= std::pow(1.f - edge->curvature() / (kMaxCurvature + 0.1f), curvature_factor_);
 
   return {sec * factor, sec};
 }
