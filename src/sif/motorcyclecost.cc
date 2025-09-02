@@ -6,6 +6,7 @@
 #include "proto_conversions.h"
 #include "sif/costconstants.h"
 #include "sif/osrm_car_duration.h"
+#include "mjolnir/util.h"
 
 #include <cassert>
 
@@ -14,10 +15,12 @@
 #include "worker.h"
 
 #include <random>
+#include <cmath>
 #endif
 
 using namespace valhalla::midgard;
 using namespace valhalla::baldr;
+using namespace valhalla::mjolnir;
 
 namespace valhalla {
 namespace sif {
@@ -433,7 +436,14 @@ Cost MotorcycleCost::EdgeCost(const baldr::DirectedEdge* edge,
     factor *= closure_factor_;
   }
 
-  factor *= edge->curvature() * curvature_factor_;
+  // TODO: docs + test + rename _factor-stuff
+  float edge_curvature_cost_factor = std::pow(1.f - edge->curvature() / (kMaxCurvature + 0.1f), curvature_factor_);
+  /*
+  if (factor != 1.f && edge->curvature() > 10) {
+    LOG_INFO("factor before:" + std::to_string(factor) + " | factor after:" + std::to_string(factor * edge_curvature_cost_factor) + ", edge_curvature_cost_factor:" + std::to_string(edge_curvature_cost_factor) + ", edge->curvature():" + std::to_string(edge->curvature()) + ", edge->length():" + std::to_string(edge->length()));
+  }
+  */
+  factor *= edge_curvature_cost_factor;
 
   return {sec * factor, sec};
 }
