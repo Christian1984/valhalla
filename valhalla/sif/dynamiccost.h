@@ -178,6 +178,33 @@ constexpr std::array<float, 16> populate_densityfactor() {
 }
 constexpr std::array<float, 16> kDensityFactor = populate_densityfactor(); // Density factor
 
+constexpr float kPreferenceMin = 0.0f;
+constexpr float kPreferenceMax = 1.0f;
+constexpr float kPreferenceStepWidth = 0.05f;
+constexpr size_t kPreferenceSteps = static_cast<size_t>((kPreferenceMax - kPreferenceMin) / kPreferenceStepWidth) + 1;
+
+constexpr std::array<float, kPreferenceSteps> kPreferenceValues = [] {
+  std::array<float, kPreferenceSteps> prefs{};
+  for (size_t i = 0; i < kPreferenceSteps; ++i) {
+    prefs[i] = kPreferenceMin + static_cast<float>(i) * kPreferenceStepWidth;
+  }
+  return prefs;
+}();
+
+constexpr std::array<std::array<float, kPreferenceSteps>, baldr::kMaxCurvatureFactor + 1> populate_curvaturefactor() {
+  std::array<std::array<float, kPreferenceSteps>, baldr::kMaxCurvatureFactor + 1> curvaturefactor{};
+  for (size_t c = 0; c < baldr::kMaxCurvatureFactor + 1; ++c) {
+    for (size_t p = 0; p < kPreferenceSteps; ++p) {
+      // Exponential penalty: pow(1.f - c / (baldr::kMaxCurvatureFactor + 0.1f), kPreferenceValues[p])
+      float norm = 1.f - static_cast<float>(c) / (static_cast<float>(baldr::kMaxCurvatureFactor) + 0.1f);
+      curvaturefactor[c][p] = std::pow(norm, kPreferenceValues[p]);
+    }
+  }
+  return curvaturefactor;
+}
+
+constexpr auto kCurvatureFactor = populate_curvaturefactor();
+
 constexpr std::array<float, 16> kTransDensityFactor = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.1f,
                                                        1.2f, 1.3f, 1.4f, 1.6f, 1.9f, 2.2f,
                                                        2.5f, 2.8f, 3.1f, 3.5f};
@@ -1083,7 +1110,7 @@ protected:
   float service_factor_;       // Avoid service roads factor.
   float closure_factor_;       // Avoid closed edges factor.
   float unlit_factor_;         // Avoid unlit edges factor.
-  float curvature_factor_;     // Prefer curvy edges factor.
+  size_t curvature_factor_index_;    // Prefer curvy edges lookup table factor index.
 
   // Transition costs
   sif::Cost country_crossing_cost_;
