@@ -191,19 +191,44 @@ constexpr std::array<float, kPreferenceSteps> kPreferenceValues = [] {
   return prefs;
 }();
 
-constexpr std::array<std::array<float, kPreferenceSteps>, baldr::kMaxCurvatureFactor + 1> populate_curvaturefactor() {
-  std::array<std::array<float, kPreferenceSteps>, baldr::kMaxCurvatureFactor + 1> curvaturefactor{};
-  for (size_t c = 0; c < baldr::kMaxCurvatureFactor + 1; ++c) {
-    for (size_t p = 0; p < kPreferenceSteps; ++p) {
-      // Exponential penalty: pow(1.f - c / (baldr::kMaxCurvatureFactor + 0.1f), kPreferenceValues[p])
-      float norm = 1.f - static_cast<float>(c) / (static_cast<float>(baldr::kMaxCurvatureFactor) + 0.1f);
-      curvaturefactor[c][p] = std::pow(norm, kPreferenceValues[p]);
-    }
+// constexpr pow for non-integer exponent: simple exp(log(x)*y) via series approx
+// (here we only need it for limited ranges, so implement via recursive Newton approx)
+constexpr float cpowf(float base, float exp, int steps = 25) {
+  // Use exp(exp * ln(base)) with a small constexpr ln/exp
+  // ln via Taylor around 1
+  if (base <= 0) return 0;
+  float y = (base - 1) / (base + 1);
+  float y2 = y * y;
+  float term = y;
+  float sum = 0.0f;
+  for (int n = 1; n < steps * 2; n += 2) {
+    sum += term / n;
+    term *= y2;
   }
-  return curvaturefactor;
+  float ln_base = 2 * sum;
+
+  // exp via series
+  float res = 1.0f;
+  float term2 = 1.0f;
+  for (int n = 1; n < steps; ++n) {
+    term2 *= (exp * ln_base) / n;
+    res += term2;
+  }
+  return res;
 }
 
-constexpr auto kCurvatureFactor = populate_curvaturefactor();
+constexpr std::array<std::array<float, kPreferenceSteps>, baldr::kMaxCurvatureFactor + 1> populate_curvature_factor() {
+  std::array<std::array<float, kPreferenceSteps>, baldr::kMaxCurvatureFactor + 1> curvature_factor{};
+  for (size_t c = 0; c < baldr::kMaxCurvatureFactor + 1; ++c) {
+    for (size_t p = 0; p < kPreferenceSteps; ++p) {
+      float norm = 1.f - static_cast<float>(c) / (static_cast<float>(baldr::kMaxCurvatureFactor) + 0.1f);
+      curvature_factor[c][p] = cpowf(norm, kPreferenceValues[p]);
+    }
+  }
+  return curvature_factor;
+}
+
+constexpr auto kCurvatureFactor = populate_curvature_factor();
 
 constexpr std::array<float, 16> kTransDensityFactor = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.1f,
                                                        1.2f, 1.3f, 1.4f, 1.6f, 1.9f, 2.2f,

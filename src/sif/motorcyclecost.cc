@@ -437,7 +437,9 @@ Cost MotorcycleCost::EdgeCost(const baldr::DirectedEdge* edge,
   }
 
   // Use lookup table for curvature factor based on edge curvature and user preference
-  factor *= kCurvatureFactor[edge->curvature()][curvature_factor_index_];
+  if (curvature_factor_index_ > 0 && edge->curvature() > 0) {
+    factor *= kCurvatureFactor[edge->curvature()][curvature_factor_index_];
+  }
 
   return {sec * factor, sec};
 }
