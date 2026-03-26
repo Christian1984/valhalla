@@ -57,8 +57,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_ID=$(gh api "/user/packages/container/valhalla-curvymap-builder/versions" \
-            --jq ".[] | select(.metadata.container.tags[] == \"${{ github.sha }}\") | .id")
-          if [ -n "$VERSION_ID" ]; then
+          VERSION_COUNT=$(gh api "/user/packages/container/valhalla-curvymap-builder/versions" --jq "length")
+          if [ "$VERSION_COUNT" -le 1 ]; then
+            gh api --method DELETE "/user/packages/container/valhalla-curvymap-builder"
+          else
+            VERSION_ID=$(gh api "/user/packages/container/valhalla-curvymap-builder/versions" \
+              --jq ".[] | select(.metadata.container.tags[] == \"${{ github.sha }}\") | .id")
             gh api --method DELETE "/user/packages/container/valhalla-curvymap-builder/versions/${VERSION_ID}"
           fi
