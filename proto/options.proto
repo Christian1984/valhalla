@@ -358,6 +358,9 @@ message Costing {
       uint32 multimodal_start_end_max_distance = 96;
     }
     float use_curvature = 97;
+    oneof has_use_residential {
+      float use_residential = 98;
+    }
   }
 
   oneof has_options {

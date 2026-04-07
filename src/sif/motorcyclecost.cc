@@ -54,9 +54,11 @@ constexpr float kLeftSideTurnCosts[] = {kTCStraight,         kTCSlight,  kTCUnfa
                                         kTCFavorable,        kTCSlight};
 
 // Valid ranges and defaults
+constexpr float kDefaultUseResidential = 0.1f; // Slight avoidance of residential roads by default
 constexpr ranged_default_t<float> kUseHighwaysRange{0, kDefaultUseHighways, 1.0f};
 constexpr ranged_default_t<float> kUseTollsRange{0, kDefaultUseTolls, 1.0f};
 constexpr ranged_default_t<float> kUseTrailsRange{0, kDefaultUseTrails, 1.0f};
+constexpr ranged_default_t<float> kUseResidentialRange{0, kDefaultUseResidential, 1.0f};
 constexpr ranged_default_t<uint32_t> kMotorcycleSpeedRange{10, baldr::kMaxAssumedSpeed,
                                                            baldr::kMaxSpeedKph};
 
@@ -290,10 +292,11 @@ public:
   // Hidden in source file so we don't need it to be protected
   // We expose it within the source file for testing purposes
 public:
-  VehicleType type_;     // Vehicle type: car (default), motorcycle, etc
-  float toll_factor_;    // Factor applied when road has a toll
-  float surface_factor_; // How much the surface factors are applied when using trails
-  float highway_factor_; // Factor applied when road is a motorway or trunk
+  VehicleType type_;        // Vehicle type: car (default), motorcycle, etc
+  float toll_factor_;       // Factor applied when road has a toll
+  float surface_factor_;    // How much the surface factors are applied when using trails
+  float highway_factor_;    // Factor applied when road is a motorway or trunk
+  float residential_factor_; // Factor applied when road classification is residential
 };
 
 // Constructor
@@ -346,6 +349,16 @@ MotorcycleCost::MotorcycleCost(const Costing& costing)
     float f = 1.0f - use_trails * 2.0f;
     surface_factor_ = static_cast<uint32_t>(kMaxTrailBiasFactor * (f * f));
   }
+
+  // Apply living street preference/avoidance from the user setting.
+  set_use_living_streets(costing_options.use_living_streets());
+
+  // Residential factor: values below 0.5 increase cost on residential roads (avoidance),
+  // values above 0.5 slightly reduce cost (preference). At 0.5 the factor is 1.0 (neutral).
+  float use_residential = costing_options.use_residential();
+  residential_factor_ = use_residential < 0.5f
+                            ? (3.0f - 4.0f * use_residential) // [3.0 at 0.0 → 1.0 at 0.5]
+                            : (1.0f - 0.5f * (use_residential - 0.5f)); // [1.0 at 0.5 → 0.75 at 1.0]
 }
 
 // Destructor
@@ -440,6 +453,8 @@ Cost MotorcycleCost::EdgeCost(const baldr::DirectedEdge* edge,
     factor *= living_street_factor_;
   } else if (edge->use() == Use::kServiceRoad) {
     factor *= service_factor_;
+  } else if (edge->classification() == baldr::RoadClass::kResidential) {
+    factor *= residential_factor_;
   }
   if (IsClosed(edge, tile)) {
     // Add a penalty for traversing a closed edge
@@ -447,7 +462,18 @@ Cost MotorcycleCost::EdgeCost(const baldr::DirectedEdge* edge,
   }
 
   factor *= EdgeFactor(edgeid);
-  factor *= kCurvatureFactor[curvature_step_][edge->curvature()];
+
+  // Apply curvature factor, scaled by rural-ness when the rider prefers curvy roads.
+  // Urban edges (high density) receive a reduced curvature bonus to favor rural Landstraßen
+  // over curvy neighborhood streets when use_curvature > 0.5.
+  float curvature_factor = kCurvatureFactor[curvature_step_][edge->curvature()];
+  if (curvature_step_ > 50 && curvature_factor < 1.0f) {
+    // Scale the bonus toward neutral for high-density (urban) edges.
+    // density 0 → full bonus; density 15 → ~50% of the bonus.
+    float rural_scale = 1.0f - edge->density() * (0.5f / 15.0f);
+    curvature_factor = 1.0f - (1.0f - curvature_factor) * rural_scale;
+  }
+  factor *= curvature_factor;
 
   return {sec * factor, sec};
 }
@@ -603,6 +629,7 @@ void ParseMotorcycleCostOptions(const rapidjson::Document& doc,
   JSON_PBF_RANGED_DEFAULT(co, kUseTollsRange, json, "/use_tolls", use_tolls);
   JSON_PBF_RANGED_DEFAULT(co, kUseTrailsRange, json, "/use_trails", use_trails);
   JSON_PBF_RANGED_DEFAULT(co, kMotorcycleSpeedRange, json, "/top_speed", top_speed);
+  JSON_PBF_RANGED_DEFAULT(co, kUseResidentialRange, json, "/use_residential", use_residential);
 }
 
 cost_ptr_t CreateMotorcycleCost(const Costing& costing_options) {

@@ -219,9 +219,28 @@ The following options are available for motorcycle costing:
 | :-------------------------- | :----------- |
 | `use_highways` | A riders's propensity to prefer the use of highways. This is a range of values from 0 to 1, where 0 attempts to avoid highways, and values toward 1 indicates the rider prefers highways. The default value is 0.5. |
 | `use_trails` | A riders's desire for adventure in their routes.  This is a range of values from 0 to 1, where 0 will avoid trails, tracks, unclassified or bad surfaces and values towards 1 will tend to avoid major roads and route on secondary roads.  The default value is 0.0. |
+| `use_living_streets` | Willingness to use living streets (shared pedestrian/vehicle zones, OSM `highway=living_street`). Range 0–1; values near 0 avoid them, values near 1 favor them. The default is 0.1 (slight avoidance). Note that sometimes living streets are required to complete a route so values of 0 are not guaranteed to avoid them entirely. |
+| `use_residential` | Willingness to use residential-class roads. Range 0–1; values near 0 avoid residential roads, 0.5 is neutral, and values near 1 slightly favor them. Default is 0.1 (slight avoidance). Combine with `use_curvature` > 0.5 to keep curvy routes on rural Landstraßen rather than urban neighborhood streets. Note that sometimes residential roads are required to complete a route so values of 0 are not guaranteed to avoid them entirely. |
 | `shortest` | Changes the metric to quasi-shortest, i.e. purely distance-based costing. Note, this will disable all other costings & penalties. Also note, `shortest` will not disable hierarchy pruning, leading to potentially sub-optimal routes for some costing models. The default is `false`. |
 | `disable_hierarchy_pruning` | Disable hierarchies to calculate the actual optimal route. The default is `false`. **Note:** This could be quite a performance drainer so there is a upper limit of distance. If the upper limit is exceeded, this option will always be `false`. |
-| `use_curvature` | This value indicates the preference for curvy roads over straight roads. `0` strongly avoids curvy roads, `0.5` is neutral (no curvature preference), and `1` strongly prefers curvy roads. Values between these extremes scale the effect exponentially. The default value is `0.5`. |
+| `use_curvature` | This value indicates the preference for curvy roads over straight roads. `0` strongly avoids curvy roads, `0.5` is neutral (no curvature preference), and `1` strongly prefers curvy roads. Values between these extremes scale the effect exponentially. When set above 0.5, the curvature bonus is additionally scaled by the road's rural-ness (edge density), so that curvy rural roads earn a larger bonus than curvy urban streets. The default value is `0.5`. |
+
+**Recommended settings for curvy Landstraße routing (motorcycle touring):**
+```json
+{
+  "costing": "motorcycle",
+  "costing_options": {
+    "motorcycle": {
+      "use_curvature": 0.8,
+      "use_living_streets": 0.0,
+      "use_residential": 0.1,
+      "use_highways": 0.3,
+      "use_trails": 0.0
+    }
+  }
+}
+```
+This strongly prefers winding rural roads (primary/secondary/tertiary), avoids living streets and residential neighborhood roads, and discourages highways — keeping the route on classic Landstraßen.
 
 ##### Pedestrian costing options
 
